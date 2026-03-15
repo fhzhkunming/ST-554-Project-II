@@ -41,10 +41,108 @@ class SparkDataCheck:
         return cls(df)
     
 
+    #============================================
+    # 1. Validation methods
+    #============================================
+
+    # 1.1 create boolean column based on numberic bounds
+    from pyspark.sql.functions import col as spark_col
+
+    def check_numeric_range(self, col: str, lower: float = None, upper: float = None):
+        """
+        Append a Boolean column indicating whether values in a numeric column
+        fall within user-defined lower and/or upper bounds (inclusive).
+        NULL values remain NULL.
+        Modifies self.df and returns self for method chaining.
+        """
+        # -----------------------------------
+        # check if the column exists
+        # -----------------------------------
+        if col not in self.df.columns:
+            print(f"Column '{col}' does not exist.")
+            return self
+
+        # -----------------------------------
+        # check if the columin is numeric
+        #------------------------------------
+        dtype = self.df.schema[col].dataType
+        if not isinstance(dtype, NumericType):
+            print(f"Column '{col}' is not numeric.")
+            return self
+
+        #--------------------------------------
+        # ensure at least one bound is provided
+        #--------------------------------------
+        if lower is None and upper is None:
+            print("No bounds provided. Please provide at least one bound.")
+            return self
+
+        #--------------------------------------------------------
+        # build the Boolean condition
+        # Spark automatically returns NULL when the input is NULL
+        #--------------------------------------------------------
+        if lower is not None and upper is not None:
+            # use Spark's between() when both bounds exist
+            condition = spark_col(col).between(lower, upper)
+        elif lower is not None:
+            # only lower bound provided
+            condition = spark_col(col) >= lower
+        elif upper is not None:
+            # only upper bound provided
+            condition = spark_col(col) <= upper
+
+        #---------------------------------
+        # append Boolean column to dataframe
+        #---------------------------------
+        new_col_name = f"{col}_in_range"
+        self.df = self.df.withColumn(new_col_name, condition)
+        return self
     
-    # -------------------------------------------------------------------------------
-    # define a method to report min and max of a numeric coulumn supplied by the user
-    # -------------------------------------------------------------------------------
+    #----------------------------------------------------------------
+    # 1.2 create a method checking values fall within a set of levels
+    #----------------------------------------------------------------
+    # import modules needed
+    from pyspark.sql.functions import col as spark_col
+    from pyspark.sql.types import StringType
+
+    def check_value_levels(self, col: str, levels):
+        """
+        Check whether values in a string column fall within 
+        a user-specified set of allowed levels. 
+        Appends a Boolean column. NULL values remain NULL.
+        Modifies self.df and returns self for method chaining. 
+        """
+        # -----------------------------------
+        # check if the column exists
+        # -----------------------------------
+        if col not in self.df.columns:
+            print(f"Column '{col}' does not exist.")
+            return self
+
+        # -----------------------------------
+        # check if the columin is string
+        #------------------------------------
+        dtype = self.df.schema[col].dataType
+        if not isinstance(dtype, StringType):
+            print(f"Column '{col}' is not a string column.")
+            return self
+
+
+        # build the Boolean condition
+        condition = spark_col(col).isin(levels)
+        # append the new Boolean column
+        new_col_name = f"{col}_in_levels"
+        self.df = self.df.withColumn(new_col_name, condition)
+        return self
+    
+    
+    #======================================
+    # 2. Summarization methods
+    #======================================
+    
+    # ----------------------------------------------------------------------------------
+    # 2.1 define a method to report min and max of a numeric coulumn supplied by the user
+    # ----------------------------------------------------------------------------------
     # import modules needed
     from pyspark.sql.functions import min, max  
     from pyspark.sql.types import NumericType   
