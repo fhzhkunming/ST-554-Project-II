@@ -45,7 +45,9 @@ class SparkDataCheck:
     # 1. Validation methods
     #============================================
 
+    #---------------------------------------------------
     # 1.1 create boolean column based on numberic bounds
+    #---------------------------------------------------
     from pyspark.sql.functions import col as spark_col
 
     def check_numeric_range(self, col: str, lower: float = None, upper: float = None):
@@ -135,6 +137,34 @@ class SparkDataCheck:
         self.df = self.df.withColumn(new_col_name, condition)
         return self
     
+    #----------------------------------------------------------------------
+    # 1.3 create a method that checks if each value in a column is missing
+    #----------------------------------------------------------------------
+    from pyspark.sql.functions import col as spark_col
+
+    def check_value_missing(self, col):
+        """
+        Check whether values in a given column are NULL.
+        Appends a Boolean column indicating NULL status.
+        Modifies self.df and returns self for method chaining.
+        """
+        # -----------------------------------
+        # check if the column exists
+        # -----------------------------------
+        if col not in self.df.columns:
+            print(f"Column '{col}' does not exist.")
+            return self
+
+        # build the Bollean contion
+        # .isNull() returns True, False, or NULL
+        condition = spark_col(col).isNull()
+
+        # append the new Boolean column to the dataframe
+        new_col_name = f"{col}_is_null"
+        self.df = self.df.withColumn(new_col_name, condition)
+
+        return self
+
     
     #======================================
     # 2. Summarization methods
@@ -225,5 +255,62 @@ class SparkDataCheck:
         # Return a DataFrame with all min/max values
         return self.df.select(*agg_exprs)    
 
+    #----------------------------------------------------------------------
+    # 2.2 create a method that reports counts of one of two string columns
+    #----------------------------------------------------------------------
+    from pyspark.sql.functions import col as spark_col
 
+    def count_column(self, col1: str, col2: str = None):
+        """
+        Report counts associated with one or two string columns.
+        The first column is required; the second is optional.
+        Only string columns are allowed. If a column is not string,
+        a message is printed and no counts are reported.
+        """
+        # -----------------------------------
+        # check if column1 exists
+        # -----------------------------------
+        if col1 not in self.df.columns:
+            print(f"Column '{col1}' does not exist.")
+            return self
+
+        # -----------------------------------------
+        # if column is provided, check if it exists
+        # -----------------------------------------
+        if col2 is not None and col2 not in self.df.columns:
+            print(f"Column '{col2}' does not exist.")
+            return self
+
+        # -----------------------------------
+        # check if columin1 is string
+        #------------------------------------
+        dtype1 = self.df.schema[col1].dataType
+        if not isinstance(dtype1, StringType):
+            print(f"Column '{col1}' is not a string column.")
+            return self
+
+        # ---------------------------------------------
+        # if column2 is provided, check if it is string
+        #----------------------------------------------
+        if col2 is not None:
+            dtype2 = self.df.schema[col2].dataType
+            if not isinstance(dtype2, StringType):
+                print(f"Column '{col2}' is not a string column.")
+                return self
+
+        #-----------------------------------
+        # one-column case
+        #-----------------------------------
+        if col2 is None:
+            print(f"Counts for '{col1}':")
+            self.df.groupBy(col1).count().show()
+            return self
+
+        #----------------------------------------------
+        # two-column case: both col1 and col2 provided
+        #---------------------------------------------
+        print(f"Counts for columns '{col1}' and '{col2}':")
+        self.df.groupBy(col1, col2).count().show()
+
+        return self    
         
