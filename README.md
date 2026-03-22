@@ -25,4 +25,6 @@ In Part II, I used `pandas`‑on‑Spark and Spark SQL to perform a brief explor
     – Sort the rows descending by `completion_percentage` and report the first 40 values!\
     – Sort the rows descending by `td_int_ratio` and report the first 40 values!
 - Repeat the above completely using te Spark SQL DataFrame, including reading in the data!\
-    – Note: the `td_int_ratio` values are treated differently between `pandas`-on-Spark and Spark SQL. Note this difference when it happens! 
+    – Note: the `td_int_ratio` values are treated differently between `pandas`-on-Spark and Spark SQL. Note this difference when it happens!
+
+Throughout the analysis, I compared the behavior of pandas‑on‑Spark and `Spark SQL`, noting differences in syntax, column creation, error handling, and sorting behavior for missing values. Both methods produced consistent results, but Spark SQL required more explicit transformations and followed SQL semantics for `NULL` handling.
