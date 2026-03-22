@@ -1,8 +1,8 @@
-########################### 
+############################ 
 # Author: Hui Fang
 # Purpose: ST 554 Project 2
-# Date: 3/15/2026
-###########################
+# Date: 3/20/2026
+############################
 
 """
 SparkDataCheck.py
@@ -18,6 +18,7 @@ from pyspark.sql.types import *
 import pandas as pd
 from pyspark.sql.types import NumericType
 from pyspark.sql.functions import col as spark_col
+from pyspark.sql.functions import min as spark_min, max as spark_max
 
 class SparkDataCheck:
     """
@@ -215,8 +216,8 @@ class SparkDataCheck:
             if group is not None:
                 return(
                     self.df.groupBy(group)
-                           .agg(self.min(col).alias(f"{col}_min"),
-                                self.max(col).alias(f"{col}_max"))
+                           .agg(spark_min(col).alias(f"{col}_min"),
+                                spark_max(col).alias(f"{col}_max"))
                            .toPandas()
                 )
 
@@ -224,8 +225,8 @@ class SparkDataCheck:
             # ungrouped version for a single numeric column      
             return (
                 self.df.select(
-                    self.min(col).alias(f"{col}_min"),
-                    self.max(col).alias(f"{col}_max")
+                    spark_min(col).alias(f"{col}_min"),
+                    spark_max(col).alias(f"{col}_max")
                 ).toPandas()
             )
 
@@ -257,8 +258,8 @@ class SparkDataCheck:
             for c in numeric_cols:
                 df_c = (
                     self.df.groupBy(group)
-                           .agg(self.min(c).alias(f"{c}_min"),
-                                self.max(c).alias(f"{c}_max"))
+                           .agg(spark_min(c).alias(f"{c}_min"),
+                                spark_max(c).alias(f"{c}_max"))
                 ).toPandas()
                 dfs.append(df_c)
 
@@ -271,14 +272,14 @@ class SparkDataCheck:
         agg_exprs = []
         for c in numeric_cols:
             agg_exprs.extend([
-                self.min(c).alias(f"{c}_min"),
-                self.max(c).alias(f"{c}_max")
+                spark_min(c).alias(f"{c}_min"),
+                spark_max(c).alias(f"{c}_max")
             ])
         # Return a DataFrame with all min/max values
         return self.df.select(*agg_exprs).toPandas()    
 
     #----------------------------------------------------------------------
-    # 2.2 create a method that reports counts of one of two string columns
+    # 2.2 create a method that reports counts of one or two string columns
     #----------------------------------------------------------------------
     
     def count_column(self, col1: str, col2: str = None):
@@ -299,8 +300,8 @@ class SparkDataCheck:
         # if column is provided, check if it exists
         # -----------------------------------------
         if col2 is not None and col2 not in self.df.columns:
-            print(f"Column '{col2}' does not exist.")
-            return self
+            print(f"Column '{col2}' does not exist. Counting only '{col1}'.")
+            col2 = None # force fallback to one-column case
 
         # -----------------------------------
         # check if column1 is string
@@ -316,8 +317,8 @@ class SparkDataCheck:
         if col2 is not None:
             dtype2 = self.df.schema[col2].dataType
             if not isinstance(dtype2, StringType):
-                print(f"Column '{col2}' is not a string column.")
-                return self
+                print(f"Column '{col2}' is not a string column. Counting only '{col1}'.")
+                col2 = None # force fallback to one-column case
 
         #-----------------------------------
         # one-column case
